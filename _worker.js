@@ -1,8 +1,9 @@
 // @ts-ignore
 import { connect } from 'cloudflare:sockets';
 
-// UUID is provided through the Cloudflare secret named UUID.
-let userID = '';
+// How to generate your own UUID:
+// [Windows] Press "Win + R", input cmd and run:  Powershell -NoExit -Command "[guid]::NewGuid()"
+let userID = 'd342d11e-d424-4583-b36e-524ab1f0afa4';
 
 const พร็อกซีไอพีs = ['cdn.xn--b6gac.eu.org', 'cdn-all.xn--b6gac.eu.org', 'workers.cloudflare.cyou'];
 
@@ -15,6 +16,9 @@ let พร็อกซีไอพี = พร็อกซีไอพีs[Math.
 
 let dohURL = 'https://freedns.controld.com/p0'; // https://github.com/serverless-dns/serverless-dns OR xxx.xxx.workers.dev [README.md]
 
+if (!isValidUUID(userID)) {
+	throw new Error('uuid is invalid');
+}
 
 export default {
 	/**
@@ -27,9 +31,6 @@ export default {
 		// uuid_validator(request);
 		try {
 			userID = env.UUID || userID;
-			if (!userID || !userID.split(',').every((uuid) => isValidUUID(uuid.trim()))) {
-				return new Response('UUID is not configured', { status: 500 });
-			}
 			พร็อกซีไอพี = env.พร็อกซีไอพี || env.PROXYIP || พร็อกซีไอพี;
 			dohURL = env.DNS_RESOLVER_URL || dohURL;
 			let userID_Path = userID;
