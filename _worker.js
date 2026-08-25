@@ -60,9 +60,17 @@ export default {
 					};
 					case `/sub/${userID_Path}`: {
 						const url = new URL(request.url);
-						const searchParams = url.searchParams;
-						const วเลสSubConfig = สร้างวเลสSub(userID, request.headers.get('Host'));
-						// Construct and return response object
+						const format = url.searchParams.get('format');
+						const hostName = request.headers.get('Host');
+						if (format === 'clash') {
+							return new Response(createClashConfig(userID, hostName), {
+								status: 200,
+								headers: {
+									"Content-Type": "text/yaml;charset=utf-8",
+								}
+							});
+						}
+						const วเลสSubConfig = สร้างวเลสSub(userID, hostName);
 						return new Response(btoa(วเลสSubConfig), {
 							status: 200,
 							headers: {
@@ -864,6 +872,70 @@ function สร้างวเลสSub(ไอดีผู้ใช้_เส้
 	});
 
 	return ผลลัพธ์.join('\n');
+}
+
+function createClashConfig(userIDs, hostName) {
+	const uuids = userIDs.split(',').map((uuid) => uuid.trim()).filter(Boolean);
+	const proxies = [];
+	const quote = (value) => JSON.stringify(String(value));
+
+	const addProxy = (uuid, server, port, tls, name) => {
+		proxies.push({ uuid, server, port, tls, name });
+	};
+
+	for (const uuid of uuids) {
+		for (const port of เซ็ตพอร์ตHttps) {
+			addProxy(uuid, hostName, port, true, `${uuid.slice(0, 8)}-${hostName}-HTTPS-${port}`);
+			for (const proxyIP of พร็อกซีไอพีs) {
+				addProxy(uuid, proxyIP, port, true, `${uuid.slice(0, 8)}-${hostName}-HTTPS-${port}-${proxyIP}`);
+			}
+		}
+		for (const port of เซ็ตพอร์ตHttp) {
+			addProxy(uuid, hostName, port, false, `${uuid.slice(0, 8)}-${hostName}-HTTP-${port}`);
+			for (const proxyIP of พร็อกซีไอพีs) {
+				addProxy(uuid, proxyIP, port, false, `${uuid.slice(0, 8)}-${hostName}-HTTP-${port}-${proxyIP}`);
+			}
+		}
+	}
+
+	const lines = [
+		'mixed-port: 7890',
+		'allow-lan: false',
+		'mode: rule',
+		'log-level: info',
+		'proxies:'
+	];
+
+	for (const proxy of proxies) {
+		lines.push(`  - name: ${quote(proxy.name)}`);
+		lines.push('    type: vless');
+		lines.push(`    server: ${quote(proxy.server)}`);
+		lines.push(`    port: ${proxy.port}`);
+		lines.push(`    uuid: ${quote(proxy.uuid)}`);
+		lines.push('    udp: true');
+		lines.push(`    tls: ${proxy.tls}`);
+		if (proxy.tls) {
+			lines.push(`    servername: ${quote(hostName)}`);
+		}
+		lines.push('    network: ws');
+		lines.push('    ws-opts:');
+		lines.push('      path: "/?ed=2048"');
+		lines.push('      headers:');
+		lines.push(`        Host: ${quote(hostName)}`);
+	}
+
+	lines.push('proxy-groups:');
+	lines.push('  - name: "PROXY"');
+	lines.push('    type: select');
+	lines.push('    proxies:');
+	lines.push('      - DIRECT');
+	for (const proxy of proxies) {
+		lines.push(`      - ${quote(proxy.name)}`);
+	}
+	lines.push('rules:');
+	lines.push('  - MATCH,PROXY');
+
+	return lines.join('\n') + '\n';
 }
 
 const cn_hostnames = [
