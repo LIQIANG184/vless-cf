@@ -214,7 +214,12 @@ python3 scripts/cf_ip_benchmark.py \\
   --clash-output cf-best.yaml
 ```
 
-将生成的 `cf-best.yaml` 导入 Clash 即可使用。
+将生成的 `cf-best.yaml` 导入 Clash 即可使用。配置默认包含以下规则：
+
+- Hagezi 广告/跟踪域名：拒绝连接。
+- `category-ads-all` 广告域名：拒绝连接。
+- 中国大陆 IP：直连。
+- 其他流量：使用 `CF-BEST` 代理组。
 
 ## Star History
 

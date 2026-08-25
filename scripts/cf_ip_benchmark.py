@@ -201,7 +201,24 @@ def render_clash(results: list[Result], host: str, uuid: str, path: str) -> str:
         ]
     )
     lines.extend(f"      - {quote(name)}" for name in names)
-    lines.extend(["rules:", "  - MATCH,CF-BEST", ""])
+    lines.extend(
+        [
+            "rule-providers:",
+            "  hagezi-ads:",
+            "    type: http",
+            "    behavior: domain",
+            "    format: text",
+            "    url: https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/multi-onlydomains.txt",
+            "    path: ./ruleset/hagezi-multi.txt",
+            "    interval: 86400",
+            "rules:",
+            "  - RULE-SET,hagezi-ads,REJECT",
+            "  - GEOSITE,category-ads-all,REJECT",
+            "  - GEOIP,CN,DIRECT",
+            "  - MATCH,CF-BEST",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
