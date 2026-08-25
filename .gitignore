@@ -18,8 +18,8 @@ dist/
 *.sublime-project
 *.sublime-workspace
 
-# Miscellaneous
-.DS_Store
-Thumbs.db
+# Generated/local configuration files
+cf-best.yaml
+cf-best*.yaml
 .env
 node_modules/

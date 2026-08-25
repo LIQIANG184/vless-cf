@@ -2,9 +2,8 @@
 // @ts-ignore
 import { connect } from 'cloudflare:sockets';
 
-// How to generate your own UUID:
-// [Windows] Press "Win + R", input cmd and run:  Powershell -NoExit -Command "[guid]::NewGuid()"
-let userID = '3fa46d22-d488-4856-b832-ee1cbe95b14e';
+// UUID is provided through the Cloudflare secret named UUID.
+let userID = '';
 
 const proxyIPs = ['cdn-all.xn--b6gac.eu.org', 'cdn.xn--b6gac.eu.org', 'cdn-b100.xn--b6gac.eu.org', 'edgetunnel.anycast.eu.org', 'cdn.anycast.eu.org'];
 let proxyIP = proxyIPs[Math.floor(Math.random() * proxyIPs.length)];
@@ -18,17 +17,16 @@ let apiToken = ''; //abcdefghijklmnopqrstuvwxyz123456
 
 let apiHost = ''; // api.v2board.com
 
-if (!isValidUUID(userID)) {
-    throw new Error('uuid is not valid');
-}
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
     const debug = url.searchParams.get("debug") === "1"
     try {
-      // 你原来的逻辑
-      return new Response("ok")
+      userID = env.UUID || userID;
+      if (!userID || !userID.split(',').every((uuid) => isValidUUID(uuid.trim()))) {
+        return new Response('UUID is not configured', { status: 500 });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       const stack = err instanceof Error ? (err.stack || "") : ""
@@ -231,9 +229,6 @@ async function checkUuidInApiResponse(targetUuid) {
     }
 }
 
-// Usage example:
-//   const targetUuid = "65590e04-a94c-4c59-a1f2-571bce925aad";
-//   checkUuidInApiResponse(targetUuid).then(result => console.log(result));
 
 /**
  * Handles outbound TCP connections.
