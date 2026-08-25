@@ -23,7 +23,7 @@ if (!isValidUUID(userID)) {
 export default {
 	/**
 	 * @param {import("@cloudflare/workers-types").Request} request
-	 * @param {{UUID: string, พร็อกซีไอพี: string, DNS_RESOLVER_URL: string, NODE_ID: int, API_HOST: string, API_TOKEN: string}} env
+	 * @param {{UUID: string, PROXYIP: string, พร็อกซีไอพี: string, DNS_RESOLVER_URL: string, NODE_ID: int, API_HOST: string, API_TOKEN: string}} env
 	 * @param {import("@cloudflare/workers-types").ExecutionContext} ctx
 	 * @returns {Promise<Response>}
 	 */
@@ -31,14 +31,14 @@ export default {
 		// uuid_validator(request);
 		try {
 			userID = env.UUID || userID;
-			พร็อกซีไอพี = env.พร็อกซีไอพี || พร็อกซีไอพี;
+			พร็อกซีไอพี = env.พร็อกซีไอพี || env.PROXYIP || พร็อกซีไอพี;
 			dohURL = env.DNS_RESOLVER_URL || dohURL;
 			let userID_Path = userID;
 			if (userID.includes(',')) {
 				userID_Path = userID.split(',')[0];
 			}
 			const upgradeHeader = request.headers.get('Upgrade');
-			if (!upgradeHeader || upgradeHeader !== 'websocket') {
+			if (upgradeHeader?.toLowerCase() !== 'websocket') {
 				const url = new URL(request.url);
 				switch (url.pathname) {
 					case `/cf`: {
@@ -50,7 +50,8 @@ export default {
 						});
 					}
 					case `/${userID_Path}`: {
-						const วเลสConfig = getวเลสConfig(userID, request.headers.get('Host'));
+						const hostName = request.headers.get('Host') || new URL(request.url).host;
+						const วเลสConfig = getวเลสConfig(userID, hostName);
 						return new Response(`${วเลสConfig}`, {
 							status: 200,
 							headers: {
@@ -61,7 +62,7 @@ export default {
 					case `/sub/${userID_Path}`: {
 						const url = new URL(request.url);
 						const format = url.searchParams.get('format');
-						const hostName = request.headers.get('Host');
+						const hostName = request.headers.get('Host') || new URL(request.url).host;
 						if (format === 'clash') {
 							return new Response(createClashConfig(userID, hostName), {
 								status: 200,
@@ -95,12 +96,15 @@ export default {
 						newHeaders.set('referer', 'https://www.google.com/search?q=edtunnel');
 						// Use fetch to proxy the request to 15 different domains
 						const proxyUrl = 'https://' + randomHostname + url.pathname + url.search;
-						let modifiedRequest = new Request(proxyUrl, {
+						const requestInit = {
 							method: request.method,
 							headers: newHeaders,
-							body: request.body,
 							redirect: 'manual',
-						});
+						};
+						if (request.method !== 'GET' && request.method !== 'HEAD') {
+							requestInit.body = request.body;
+						}
+						const modifiedRequest = new Request(proxyUrl, requestInit);
 						const proxyResponse = await fetch(modifiedRequest, { redirect: 'manual' });
 						// Check for 302 or 301 redirect status and return an error response
 						if ([301, 302].includes(proxyResponse.status)) {
@@ -116,8 +120,8 @@ export default {
 				return await วเลสOverWSHandler(request);
 			}
 		} catch (err) {
-			/** @type {Error} */ let e = err;
-			return new Response(e.toString());
+			console.error('Worker request failed:', err);
+			return new Response('Internal Error', { status: 500 });
 		}
 	},
 };
