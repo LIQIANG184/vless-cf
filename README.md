@@ -218,10 +218,6 @@ python3 scripts/cf_ip_benchmark.py \\
 
 ## Star History
 
-<a href="https://www.star-history.com/#vauth/vless-cf&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=vauth/vless-cf&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=vauth/vless-cf&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=vauth/vless-cf&type=Date" />
- </picture>
-</a>
+[![GitHub stars](https://img.shields.io/github/stars/LIQIANG184/vless-cf?style=flat-square)](https://github.com/LIQIANG184/vless-cf/stargazers)
+
+[在 Star History 查看仓库趋势](https://www.star-history.com/#LIQIANG184/vless-cf&Date)
