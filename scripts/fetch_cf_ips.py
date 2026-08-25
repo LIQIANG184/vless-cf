@@ -6,19 +6,66 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import json
+import subprocess
 from pathlib import Path
+from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 DEFAULT_URL = "https://api.4ce.cn/api/bestCFIP"
 
 
-def fetch_candidates(url: str, timeout: float) -> list[str]:
+def fetch_payload(url: str, timeout: float) -> object:
     request = Request(
         url,
         headers={"Accept": "application/json", "User-Agent": "vless-cf/1.0"},
     )
-    with urlopen(request, timeout=timeout) as response:
-        payload = json.load(response)
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return json.load(response)
+    except (OSError, URLError) as python_error:
+        try:
+            completed = subprocess.run(
+                [
+                    "curl",
+                    "--fail",
+                    "--silent",
+                    "--show-error",
+                    "--location",
+                    "--http1.1",
+                    "--ipv4",
+                    "--retry",
+                    "2",
+                    "--retry-delay",
+                    "1",
+                    "--connect-timeout",
+                    str(timeout),
+                    "--max-time",
+                    str(timeout),
+                    "-A",
+                    "vless-cf/1.0",
+                    url,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout * 4 + 5,
+            )
+            return json.loads(completed.stdout)
+        except FileNotFoundError as curl_error:
+            raise RuntimeError(
+                f"Python HTTPS request failed ({python_error}); curl is not installed"
+            ) from curl_error
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, json.JSONDecodeError) as curl_error:
+            detail = getattr(curl_error, "stderr", "") or str(curl_error)
+            raise RuntimeError(
+                f"Unable to fetch {url} with Python or curl: {detail.strip()}"
+            ) from curl_error
+
+
+def fetch_candidates(url: str, timeout: float) -> list[str]:
+    payload = fetch_payload(url, timeout)
+    if not isinstance(payload, dict):
+        raise ValueError("API response is not a JSON object")
 
     groups = payload.get("data", {}).get("v4", {})
     if not isinstance(groups, dict):

@@ -92,10 +92,129 @@ note: `proxyIP` is the ip or domain you want to set. this means that the proxyIP
 
 resons: Outbound TCP sockets to Cloudflare IP ranges are temporarily blocked, please refer to the [tcp-sockets documentation](https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/#considerations)
 
-## Usage
+## 候选 IP 获取与测速
 
-frist, open your pages.dev domain `https://edtunnel.pages.dev/` in your browser, then you can see the following page:
-The path `/uuid your seetting` to get the clash config and vless:// link.
+### 获取候选 IPv4
+
+从 `cf.vvhan.com` 获取候选 IP，并保存到 `cf-ips.txt`：
+
+```bash
+python3 scripts/fetch_cf_ips.py
+```
+
+也可以指定输出文件：
+
+```bash
+python3 scripts/fetch_cf_ips.py --output my-cf-ips.txt
+```
+
+### 测试候选 IP
+
+HTTP/HTTPS 测试：
+
+```bash
+python3 scripts/cf_ip_benchmark.py \\
+  --host your-worker.workers.dev \\
+  --input cf-ips.txt \\
+  --port 443 \\
+  --http
+```
+
+WebSocket 测试：
+
+```bash
+python3 scripts/cf_ip_benchmark.py \\
+  --host your-worker.workers.dev \\
+  --input cf-ips.txt \\
+  --port 80 \\
+  --timeout 5
+```
+
+常用端口如下：
+
+```text
+HTTP：80、8080、8880、2052、2086、2095
+HTTPS：443、8443、2053、2096、2087、2083
+```
+
+### 生成 Clash 配置
+
+HTTP WebSocket：
+
+```bash
+python3 scripts/cf_ip_benchmark.py \\
+  --host your-worker.workers.dev \\
+  --input cf-ips.txt \\
+  --port 80 \\
+  --timeout 5 \\
+  --uuid your-uuid \\
+  --clash-output cf-best.yaml
+```
+
+HTTPS WebSocket：
+
+```bash
+python3 scripts/cf_ip_benchmark.py \\
+  --host your-worker.workers.dev \\
+  --input cf-ips.txt \\
+  --port 443 \\
+  --timeout 5 \\
+  --uuid your-uuid \\
+  --clash-output cf-best.yaml
+```
+
+参数说明：
+
+- `--host`：Worker 域名。
+- `--input`：候选 IP 文件。
+- `--port`：测试端口，可重复指定。
+- `--timeout`：单个 IP 的超时时间，单位为秒。
+- `--uuid`：VLESS UUID。
+- `--clash-output`：Clash 配置输出文件。
+- `--http`：使用 HTTP 状态码测试，不加此参数时测试 WebSocket。
+
+### 配置 Worker
+
+在 `wrangler.toml` 中设置 UUID：
+
+```toml
+[vars]
+UUID = "your-uuid"
+PROXYIP = "your-proxy-ip-or-domain"
+```
+
+部署 Worker：
+
+```bash
+npm install
+npm run deploy
+```
+
+### 获取订阅配置
+
+将下面的域名和 UUID 替换为实际值：
+
+```text
+https://your-domain.example/your-uuid
+https://your-domain.example/sub/your-uuid?format=clash
+https://your-domain.example/bestip/your-uuid
+```
+
+### 完整操作流程
+
+```bash
+python3 scripts/fetch_cf_ips.py
+
+python3 scripts/cf_ip_benchmark.py \\
+  --host your-worker.workers.dev \\
+  --input cf-ips.txt \\
+  --port 80 \\
+  --timeout 5 \\
+  --uuid your-uuid \\
+  --clash-output cf-best.yaml
+```
+
+将生成的 `cf-best.yaml` 导入 Clash 即可使用。
 
 ## Star History
 
