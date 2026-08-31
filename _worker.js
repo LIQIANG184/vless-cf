@@ -268,38 +268,32 @@ async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawCli
 	 * @returns {Promise<import("@cloudflare/workers-types").Socket>} A Promise that resolves to the connected socket.
 	 */
 	async function connectAndWrite(address, port) {
+		log(`opening TCP socket to ${address}:${port}`);
 		/** @type {import("@cloudflare/workers-types").Socket} */
 		const tcpSocket = connect({
 			hostname: address,
-			port: port,
+			port,
 		});
 		remoteSocket.value = tcpSocket;
-		log(`connected to ${address}:${port}`);
-		const writer = tcpSocket.writable.getWriter();
-		await writer.write(rawClientData); // first write, nomal is tls client hello
-		writer.releaseLock();
-		return tcpSocket;
-	}
+		tcpSocket.closed.catch((error) => {
+			log(`TCP socket to ${address}:${port} closed: ${error?.message || error}`);
+		});
 
-	/**
-	 * Retries connecting to the remote address and port if the Cloudflare socket has no incoming data.
-	 * @returns {Promise<void>} A Promise that resolves when the retry is complete.
-	 */
-	async function retry() {
-		const tcpSocket = await connectAndWrite(พร็อกซีไอพี || addressRemote, portRemote)
-		tcpSocket.closed.catch(error => {
-			console.log('retry tcpSocket closed error', error);
-		}).finally(() => {
-			safeCloseWebSocket(webSocket);
-		})
-		remoteSocketToWS(tcpSocket, webSocket, วเลสResponseHeader, null, log);
+		const writer = tcpSocket.writable.getWriter();
+		try {
+			await writer.write(rawClientData); // First write is normally the TLS ClientHello.
+			log(`sent initial client data to ${address}:${port}`);
+		} finally {
+			writer.releaseLock();
+		}
+		return tcpSocket;
 	}
 
 	const tcpSocket = await connectAndWrite(addressRemote, portRemote);
 
-	// when remoteSocket is ready, pass to websocket
-	// remote--> ws
-	remoteSocketToWS(tcpSocket, webSocket, วเลสResponseHeader, retry, log);
+	// Diagnostic mode: use only the requested destination. Do not retry through a
+	// third-party ProxyIP, which can hide target failures or return an unrelated TLS certificate.
+	remoteSocketToWS(tcpSocket, webSocket, วเลสResponseHeader, null, log);
 }
 
 /**
